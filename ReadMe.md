@@ -66,11 +66,8 @@ python NPDS.py
 
 2. Refer the following video:
 
+https://github.com/user-attachments/assets/ca9082e3-5fb3-4cee-957c-84b437e85408
 
 
 ### Contact
 jihongchao@caas.cn
-
-
-
-
