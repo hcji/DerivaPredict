@@ -80,7 +80,9 @@ class Thread_PredictDerivative(QThread):
         
     def run(self):
         if self.method == 'Chemical-Template-based':
-            derivative_list = utils.predict_compound_derivative_chemical_templete(self.smiles_list, n_loop = self.n_loop, n_branch = self.n_branch, sim_filter = self.sim_filter)
+            derivative_list = utils.predict_compound_derivative_chemical_templete(self.smiles_list, n_loop = self.n_loop, n_branch = self.n_branch, sim_filter = self.sim_filter, rxn_data = 'chemical_rxns')
+        elif self.method == 'Biochemical-Template-based':
+            derivative_list = utils.predict_compound_derivative_chemical_templete(self.smiles_list, n_loop = self.n_loop, n_branch = self.n_branch, sim_filter = self.sim_filter, rxn_data = 'biochemical_rxns')
         elif self.method == 'BioTransformer-EC-based':
             derivative_list = utils.predict_compound_derivative_biotransformer(self.smiles_list, n_loop = self.n_loop, sim_filter = self.sim_filter, method = 'ecbased')
         elif self.method == 'BioTransformer-CYP450':
@@ -106,7 +108,7 @@ class Thread_PredictDTI(QThread):
         self.smiles_list = smiles_list
         self.target_list = target_list
         self.affinity_model_type = affinity_model_type
-        
+
     def run(self):
         dti_list = utils.predict_compound_target_affinity(smiles_list=self.smiles_list, target_list=self.target_list, affinity_model_type=self.affinity_model_type)
         self._r.emit(dti_list)
@@ -408,12 +410,21 @@ class NPDS_App(QMainWindow, Ui_MainWindow):
             self.Thread_PredictDTI.finished.connect(self.fill_DTI_table)
 
 
+    def fill_additional_property(self, DTI_table):
+        scscores = utils.predict_compound_scscore(DTI_table['SMILES'])
+        qed_scores = utils.predict_compound_qed(DTI_table['SMILES'])
+        DTI_table['SCScore'] = scscores
+        DTI_table['QED'] = qed_scores
+        return DTI_table
+
+
     def fill_DTI_table(self):
         target_data = pd.DataFrame(self.target_list, columns = ['uniprot_id', 'gene_symbol', 'sequence'])
         DTI_table = self.DTI_list.pivot(index='SMILES', columns='Target Sequence', values='Predicted Value').reset_index()
         gene_maping = {target_data.loc[i,'sequence']: target_data.loc[i,'gene_symbol'] for i in target_data.index}
         gene_maping['Target Sequence SMILES'] = 'SMILES'
         DTI_table = DTI_table.rename(columns=gene_maping)
+        DTI_table = self.fill_additional_property(DTI_table)
         self._set_table_widget(self.tableWidget_dta_out, DTI_table)
         self.tableWidget_dta_out.setCurrentCell(0, 0)
         #self.predict_ADMET()
@@ -423,7 +434,7 @@ class NPDS_App(QMainWindow, Ui_MainWindow):
         self._set_finished()
         # # 关闭功能
         # self.predict_ADMET()
-        
+            
         
     def predict_ADMET(self):
         smiles_list = list(self.derivative_list['precursor']) + list(self.derivative_list['derivant'])

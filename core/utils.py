@@ -15,15 +15,30 @@ import pandas as pd
 
 from rdkit import Chem, DataStructs
 from rdkit.Chem import AllChem, Draw
+from rdkit.Chem.QED import qed
 
 from admet_ai import ADMETModel
 from DeepPurpose import utils, DTI
 from chembl_webresource_client.new_client import new_client
 
+from core.scscore import SCScorer
+
+
+'''
 with open('save_folder/chemical_templetes/templates_general.json') as js:
     chemical_templetes = list(json.load(js).keys())
     chemical_rxns = [AllChem.ReactionFromSmarts(temp) for temp in chemical_templetes]
+'''
 
+with open('data/ChemTemplates.txt') as txt:
+    chemical_templetes = txt.readlines()
+    chemical_templetes = [temp for temp in chemical_templetes if ('.' not in temp) and ('*' not in temp)]
+    chemical_rxns = [AllChem.ReactionFromSmarts(temp) for temp in chemical_templetes]
+
+with open('data/BioTemplates.txt') as txt:
+    biochemical_templetes = txt.readlines()
+    biochemical_templetes = [temp for temp in biochemical_templetes if ('.' not in temp) and ('*' not in temp)]
+    biochemical_rxns = [AllChem.ReactionFromSmarts(temp) for temp in biochemical_templetes]
 
 def retrieve_gene_from_name(gene_name):
     gene_results = new_client.target.filter(target_synonym__icontains=gene_name)
@@ -56,7 +71,7 @@ def retrieve_protein_sequence(protein_id):
         return None
 
 
-def predict_compound_derivative_chemical_templete(smiles_list, n_loop = 2, n_branch = 20, sim_filter = 0.5):
+def predict_compound_derivative_chemical_templete(smiles_list, n_loop = 2, n_branch = 20, sim_filter = 0.5, rxn_data = 'chemical_rxns'):
     '''
     with open('example/taxoids.smi') as txt:
         smiles_list = txt.readlines()
@@ -75,15 +90,18 @@ def predict_compound_derivative_chemical_templete(smiles_list, n_loop = 2, n_bra
     def predict_products(smi):
         mol = Chem.MolFromSmiles(smi)
         fingerprint = get_fingerprint(mol)
-        products = [rxn.RunReactants([mol]) for rxn in chemical_rxns]
+        if rxn_data == 'chemical_rxns':
+            products = [rxn.RunReactants([mol]) for rxn in chemical_rxns]
+        else:
+            products = [rxn.RunReactants([mol]) for rxn in biochemical_rxns]
         products = [s for s in products if len(s) > 0]
         products = flatten_list(products)
         products_smiles = np.unique([Chem.MolToSmiles(p) for p in products])        
         products_similarity = []
         for p in products_smiles:
             try:
-                p = Chem.MolFromSmiles(p)
-                products_similarity.append(DataStructs.FingerprintSimilarity(fingerprint, get_fingerprint(p)))
+                m = Chem.MolFromSmiles(p)
+                products_similarity.append(DataStructs.FingerprintSimilarity(fingerprint, get_fingerprint(m)))
             except:
                 products_similarity.append(0)
         products_similarity = np.array(products_similarity)
@@ -195,6 +213,31 @@ def predict_compound_ADMET_property(smiles_list):
     smiles_list = np.unique(smiles_list)
     results = model.predict(smiles=smiles_list)
     return results.reset_index()
+
+
+def predict_compound_scscore(smiles_list):
+    results = []
+    model = SCScorer()
+    model.restore()
+    for smi in smiles_list:
+        try:
+            (smi, score) = model.get_score_from_smi(smi)
+            score = np.round(score, 3)
+        except:
+            score = np.nan
+        results.append(score)
+    return results
+
+
+def predict_compound_qed(smiles_list):
+    results = []
+    for smi in smiles_list:
+        try:
+            qed_score = np.round(qed(Chem.MolFromSmiles(smi)), 3)
+        except:
+            qed_score = np.nan
+        results.append(qed_score)
+    return results
 
 
 def refine_compound_ADMET_property(ADMET_list, smiles, property_class = 'Physicochemical'):

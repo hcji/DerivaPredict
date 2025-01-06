@@ -17,17 +17,23 @@ class ParametersUI(QtWidgets.QDialog, Ui_Dialog):
         self.setupUi(self)
         self.setWindowTitle("Setting")
         
-        self.comboBox_der_type.addItems(['Biological', 'Chemical'])
+        self.comboBox_der_type.addItems(['Biochemical', 'Chemical', 'Metabolic'])
         self.comboBox_dta_model.addItems(['CNN-CNN', 'MPNN-CNN', 'Morgan-CNN', 'baseTransformer-CNN'])
         self.add_comboBox_der_model()
         self.comboBox_der_type.currentTextChanged.connect(self.add_comboBox_der_model)
+        self.spinBox_n_loop.setMaximum(3)
+        self.spinBox_n_loop.setProperty("value", 1)
         
     def add_comboBox_der_model(self):
         if self.comboBox_der_type.currentText() == 'Chemical':
             self.comboBox_der_model.clear()
             self.comboBox_der_model.addItems(['Chemical-Template-based'])
+            
+        if self.comboBox_der_type.currentText() == 'Biochemical':
+            self.comboBox_der_model.clear()
+            self.comboBox_der_model.addItems(['Biochemical-Template-based'])
         
-        if self.comboBox_der_type.currentText() == 'Biological':
+        if self.comboBox_der_type.currentText() == 'Metabolic':
             self.comboBox_der_model.clear()
             self.comboBox_der_model.addItems(['BioTransformer-EC-based', 
                                               'BioTransformer-CYP450', 
