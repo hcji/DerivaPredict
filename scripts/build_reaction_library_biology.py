@@ -6,7 +6,9 @@ Created on Mon Dec 30 15:46:21 2024
 """
 
 
+import json
 from tqdm import tqdm
+from rdkit import Chem
 from rxnmapper import RXNMapper
 from rxnutils.chem.reaction import ChemicalReaction
 
@@ -16,9 +18,21 @@ with open('data/BioReactions.txt') as txt:
 print(len(rxns))
 
 
+def update_rxn(smiles):
+    reactants, products = smiles.split(">>")
+    reactant_list = reactants.split(".")
+    largest_molecule = max(reactant_list, key=lambda r: Chem.MolFromSmiles(r).GetNumHeavyAtoms() if Chem.MolFromSmiles(r) else 0)
+    return f"{largest_molecule}>>{products}"
+
+
 mapped_rxns = []
 rxn_mapper = RXNMapper()
 for rxn in tqdm(rxns):
+    rxn = rxn.replace('\n', '')
+    rxn = update_rxn(rxn)
+    if '.' in rxn.split('>>')[0]:
+        break
+    
     try:
         mapping = rxn_mapper.get_attention_guided_atom_maps([rxn])
     except:
@@ -38,9 +52,6 @@ for r in tqdm(mapped_rxns):
 templates = list(set(templates))
 
 
-txt = open('data/BioTemplates.txt', 'a')
-for temp in templates:
-    txt.write(temp)
-    txt.write('\n')
-txt.close()
+with open('data/BioTemplates.json', 'w') as f:
+    json.dump(templates, f, indent=1)
 

@@ -24,12 +24,18 @@ from chembl_webresource_client.new_client import new_client
 from core.scscore import SCScorer
 
 
-'''
-with open('save_folder/chemical_templetes/templates_general.json') as js:
-    chemical_templetes = list(json.load(js).keys())
-    chemical_rxns = [AllChem.ReactionFromSmarts(temp) for temp in chemical_templetes]
-'''
 
+with open('data/ChemTemplates.json') as js:
+    chemical_templetes = list(json.load(js))
+    chemical_templetes = [temp for temp in chemical_templetes if ('.' not in temp) and ('*' not in temp)]
+    chemical_rxns = [AllChem.ReactionFromSmarts(temp) for temp in chemical_templetes]
+
+with open('data/BioTemplates.json') as js:
+    biochemical_templetes = list(json.load(js))
+    biochemical_templetes = [temp for temp in biochemical_templetes if ('.' not in temp) and ('*' not in temp)]
+    biochemical_rxns = [AllChem.ReactionFromSmarts(temp) for temp in biochemical_templetes]
+
+'''
 with open('data/ChemTemplates.txt') as txt:
     chemical_templetes = txt.readlines()
     chemical_templetes = [temp for temp in chemical_templetes if ('.' not in temp) and ('*' not in temp)]
@@ -39,6 +45,7 @@ with open('data/BioTemplates.txt') as txt:
     biochemical_templetes = txt.readlines()
     biochemical_templetes = [temp for temp in biochemical_templetes if ('.' not in temp) and ('*' not in temp)]
     biochemical_rxns = [AllChem.ReactionFromSmarts(temp) for temp in biochemical_templetes]
+'''
 
 def retrieve_gene_from_name(gene_name):
     gene_results = new_client.target.filter(target_synonym__icontains=gene_name)
@@ -101,7 +108,10 @@ def predict_compound_derivative_chemical_templete(smiles_list, n_loop = 2, n_bra
         for p in products_smiles:
             try:
                 m = Chem.MolFromSmiles(p)
-                products_similarity.append(DataStructs.FingerprintSimilarity(fingerprint, get_fingerprint(m)))
+                simi = DataStructs.FingerprintSimilarity(fingerprint, get_fingerprint(m))
+                if simi == 1:
+                    simi = 0
+                products_similarity.append(simi)
             except:
                 products_similarity.append(0)
         products_similarity = np.array(products_similarity)
