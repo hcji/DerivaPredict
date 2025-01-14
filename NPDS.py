@@ -8,7 +8,7 @@ Created on Mon Mar  4 14:54:21 2024
 import os
 import sys
 if sys.platform.startswith('win'):## need to add environ aug here ## windows版Graphviz要求。
-    os.environ["PATH"] += os.pathsep + os.pathsep + 'C:/Program Files/Graphviz/bin' #'D:/Program Files/Graphviz/bin'
+    os.environ["PATH"] += os.pathsep + os.pathsep + 'D:/Program Files/Graphviz/bin'#'C:/Program Files/Graphviz/bin' #'D:/Program Files/Graphviz/bin'
 
 import shutil
 import string
@@ -389,6 +389,7 @@ class NPDS_App(QMainWindow, Ui_MainWindow):
 
     
     def predict_DTI(self):
+        print('Predicting Derivative work done')
         if self.derivative_list.empty:
             self.ErrorMsg('No valid prediction for current input precursor compound')
             self.progressBar.setValue(100)
@@ -417,6 +418,7 @@ class NPDS_App(QMainWindow, Ui_MainWindow):
 
 
     def fill_DTI_table(self):
+        print('Predicting DTI work done')
         target_data = pd.DataFrame(self.target_list, columns = ['uniprot_id', 'gene_symbol', 'sequence'])
         DTI_table = self.DTI_list.pivot(index='SMILES', columns='Target Sequence', values='Predicted Value').reset_index()
         gene_maping = {target_data.loc[i,'sequence']: target_data.loc[i,'gene_symbol'] for i in target_data.index}
@@ -425,13 +427,11 @@ class NPDS_App(QMainWindow, Ui_MainWindow):
         DTI_table = self.fill_additional_property(DTI_table)
         self._set_table_widget(self.tableWidget_dta_out, DTI_table)
         self.tableWidget_dta_out.setCurrentCell(0, 0)
-        #self.predict_ADMET()
-        # #change
+        self.predict_ADMET()  # Revert to original version
+        #change # add it as following
         self.progressBar.setValue(100)
         self.progressBar.setFormat('Ready')
         self._set_finished()
-        # # 关闭功能
-        # self.predict_ADMET()
             
         
     def predict_ADMET(self):
@@ -466,31 +466,35 @@ class NPDS_App(QMainWindow, Ui_MainWindow):
         self.progressBar.setFormat('Ready')
         self._set_finished()
 
-    #### new add here
+    ## new add here
     def show_synthesis_path(self):
         df = self.derivative_list
+        current_path = os.getcwd()
         index = self.tableWidget_dta_out.currentRow()
         current_smiles = self.tableWidget_dta_out.item(index, 0).text()
         print(f'get_synthesis_path for current_SMILES:{current_smiles}')
         # 获取当前分子的合成路径
         search_line = df[df['derivant'].isin([current_smiles])].to_dict('records')
+        n_loop = self.ParametersUI.spinBox_n_loop.value()
+        print('search_line', search_line)
         smi_lst = []
         smi_lst.append(current_smiles)
-        while len(search_line) != 0:  # 有对应前体。读取前体
-            search_result = search_line[0]['precursor']
-            smi_lst.insert(0, search_result)
-            get_smiles = search_result
-            search_line = df[df['derivant'].isin([get_smiles])].to_dict('records')
+        while len(search_line) != 0 and n_loop > 0:  # 有对应前体。读取前体
+            for i in range(len(search_line)):
+                if search_line[i]['precursor'] not in smi_lst:
+                    search_result = search_line[i]['precursor']
+                    smi_lst.insert(0, search_result)
+                    search_line = df[df['derivant'].isin([search_result])].to_dict('records')
+                    print('search_line', search_line)
+                    n_loop -= 1
+                    break
+                else:
+                    search_line = []
         # 生成分子图，并生成路径图
-        current_path = os.getcwd()
-        if not os.path.exists(f'{current_path}/temp'):
-            os.mkdir(f'{current_path}/temp')
-
         G = Digraph('G', filename='temp/return_synthesis_path')
         G.attr('node', shape='box')
         G.format = 'png'
         G_save_path = 'temp/return_synthesis_path.png'
-
         for i in range(len(smi_lst)):
             print(f'synthesis_path:{i + 1}/{len(smi_lst)}', '\n', smi_lst[i])
             try:
@@ -516,7 +520,7 @@ class NPDS_App(QMainWindow, Ui_MainWindow):
         print('resized pic size', new_width, new_height)
         pic2show = QtGui.QPixmap(G_save_path).scaled(new_width, new_height, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
         self.label_7.setPixmap(pic2show)
-        self.predict_ADMET()
+        # self.predict_ADMET() # canceled #wrong place here
         
 
 if __name__ == '__main__':
