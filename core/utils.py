@@ -103,7 +103,7 @@ def predict_compound_derivative_chemical_templete(smiles_list, n_loop = 2, n_bra
             products = [rxn.RunReactants([mol]) for rxn in biochemical_rxns]
         products = [s for s in products if len(s) > 0]
         products = flatten_list(products)
-        products_smiles = np.unique([Chem.MolToSmiles(p) for p in products])        
+        products_smiles = np.unique([Chem.MolToSmiles(p) for p in products])
         products_similarity = []
         for p in products_smiles:
             try:
@@ -145,10 +145,8 @@ def predict_compound_derivative_chemical_templete(smiles_list, n_loop = 2, n_bra
     return derivative_list
 
 
-def predict_compound_derivative_biotransformer(smiles_list, n_loop = 2, sim_filter = 0.5, method = 'ecbased'):
-    
+def predict_compound_derivative_biotransformer(smiles_list, n_loop = 2, sim_filter = 0.5, method = 'ecbased'):    
     get_fingerprint = lambda mol: AllChem.GetMorganFingerprintAsBitVect(mol, 2, useFeatures=False)
-    
     mols = [Chem.MolFromSmiles(smi) for smi in smiles_list]
     mols = [m for m in mols if mols is not None]
     try:
@@ -166,6 +164,8 @@ def predict_compound_derivative_biotransformer(smiles_list, n_loop = 2, sim_filt
     cmdline += '-isdf precursors.sdf '
     cmdline += '-ocsv output.csv '
     subprocess.call(cmdline, cwd = cwd)
+    
+    all_fp1 = [get_fingerprint(m) for m in mols]
     if os.path.isfile('biotransformer/output.csv'):
         derivative_list = pd.read_csv('biotransformer/output.csv')
         derivative_list = derivative_list.loc[:,['Precursor SMILES', 'SMILES']]
@@ -176,9 +176,8 @@ def predict_compound_derivative_biotransformer(smiles_list, n_loop = 2, sim_filt
         products_similarity = []
         for i in derivative_list.index:
             try:
-                fp1 = get_fingerprint(Chem.MolFromSmiles(derivative_list.loc[i, 'precursor']))
                 fp2 = get_fingerprint(Chem.MolFromSmiles(derivative_list.loc[i, 'derivant']))
-                products_similarity.append(DataStructs.FingerprintSimilarity(fp1, fp2))
+                products_similarity.append(np.max( [DataStructs.FingerprintSimilarity(fp1, fp2) for fp1 in all_fp1] ) )
             except:
                 products_similarity.append(0)
         products_similarity = np.array(products_similarity)

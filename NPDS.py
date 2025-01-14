@@ -4,15 +4,11 @@ Created on Mon Mar  4 14:54:21 2024
 
 @author: DELL
 """
-#  -i https://pypi.tuna.tsinghua.edu.cn/simple
-#pip install torchtext==0.6.0 同core.utils
-#pip install configargparse
-#pip install sacrebleu
-#pip install pytorch_lightning==1.2.3
+
 import os
 import sys
-if sys.platform.startswith('win'):## need to add environ aug here ##windows版Graphviz要求。
-    os.environ["PATH"] += os.pathsep + 'C:/Program Files/Graphviz/bin'
+if sys.platform.startswith('win'):## need to add environ aug here ## windows版Graphviz要求。
+    os.environ["PATH"] += os.pathsep + os.pathsep + 'C:/Program Files/Graphviz/bin' #'D:/Program Files/Graphviz/bin'
 
 import shutil
 import string
@@ -36,7 +32,6 @@ from widget.PubchemSketcher import PubchemSketcherUI
 from widget.ChemicalImage import ChemicalImageUI
 from widget.Parameters import ParametersUI
 from datetime import datetime
-import time
 
 class TableModel(QtCore.QAbstractTableModel):
     def __init__(self, data, showAllColumn=False):
@@ -136,7 +131,7 @@ class NPDS_App(QMainWindow, Ui_MainWindow):
         self.progressBar.setFormat('Ready')
         
         try:
-            shutil.rmtree('temp')  
+            shutil.rmtree('temp')
             os.mkdir('temp') 
         except:
             pass
@@ -367,6 +362,9 @@ class NPDS_App(QMainWindow, Ui_MainWindow):
         self.ChemicalImageUI.show()
         precursor_mol = Chem.MolFromSmiles(precursor_smi)
         file_name = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+        current_path = os.getcwd()
+        if not os.path.exists(f'{current_path}/temp'):
+            os.mkdir(f'{current_path}/temp')
         Draw.MolToFile(precursor_mol, 'temp/{}.png'.format(file_name))
         self.ChemicalImageUI.label_chem_image.setPixmap(QPixmap('temp/{}.png'.format(file_name)))
         
@@ -484,12 +482,15 @@ class NPDS_App(QMainWindow, Ui_MainWindow):
             get_smiles = search_result
             search_line = df[df['derivant'].isin([get_smiles])].to_dict('records')
         # 生成分子图，并生成路径图
+        current_path = os.getcwd()
+        if not os.path.exists(f'{current_path}/temp'):
+            os.mkdir(f'{current_path}/temp')
+
         G = Digraph('G', filename='temp/return_synthesis_path')
         G.attr('node', shape='box')
         G.format = 'png'
         G_save_path = 'temp/return_synthesis_path.png'
 
-        current_path = os.getcwd()
         for i in range(len(smi_lst)):
             print(f'synthesis_path:{i + 1}/{len(smi_lst)}', '\n', smi_lst[i])
             try:
